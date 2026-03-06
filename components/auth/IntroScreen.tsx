@@ -1,6 +1,14 @@
-import { Dimensions, StyleSheet, Text, View } from "react-native";
+import {
+  Dimensions,
+  Keyboard,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { verticalScale } from "react-native-size-matters";
-
+import { Image } from "react-native";
 import { Colors } from "@/constants/theme";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEffect, useState } from "react";
@@ -10,18 +18,27 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withDelay,
+  withSpring,
   withTiming,
 } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const { width, height } = Dimensions.get("window");
 const MENU_HEIGHT = 250;
 const PEEK_MENU_HEIGHT = 50;
 const CLOSED_POSITION = MENU_HEIGHT - PEEK_MENU_HEIGHT;
 const videoSource = require("../../assets/videos/broll.mov");
+const logoSource = require("../../assets/images/icon.png");
 export default function IntroScreen() {
+  const insets = useSafeAreaInsets();
   const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
   const mainTextOpacity = useSharedValue(0);
+  const menuContentOpacity = useSharedValue(0);
   const scriptedTextOpacity = useSharedValue(0);
+  const menuTranslateY = useSharedValue(CLOSED_POSITION);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [currentView, setCurrentView] = useState<"login" | "email">("login");
 
   const mainTextWords: string[] = ["Learn", "Finish", "The", "Right", "Way"];
   const scriptPhrases: string[] = [
@@ -62,12 +79,25 @@ export default function IntroScreen() {
       transform: [{ translateY }],
     };
   });
+
+  const menuAnimtedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: menuTranslateY.value }],
+    };
+  });
+
+  const menuContentAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: menuContentOpacity.value,
+    };
+  });
   const animateTextIn = () => {
     mainTextOpacity.value = withTiming(1, { duration: 1200 });
     scriptedTextOpacity.value = withDelay(
       800,
       withTiming(1, { duration: 800 }),
     );
+    menuContentOpacity.value = withDelay(1200, withTiming(1, { duration: 800 }));
   };
 
   const animateScriptedTextOut = () => {
@@ -75,6 +105,20 @@ export default function IntroScreen() {
   };
   const animateScriptIn = () => {
     scriptedTextOpacity.value = withTiming(1, { duration: 600 });
+  };
+
+  const animateMenu = (open: boolean) => {
+    menuTranslateY.value = withSpring(open ? 0 : CLOSED_POSITION, {
+      damping: 15,
+      stiffness: 150,
+      mass: 1,
+    });
+  };
+
+  const handlePress = () => {
+    const newState = !isMenuOpen;
+    setIsMenuOpen(newState);
+    animateMenu(newState);
   };
 
   useEffect(() => {
@@ -116,12 +160,57 @@ export default function IntroScreen() {
       const timeout = setTimeout(() => {
         animateScriptIn();
       }, 150);
-
       return () => {
         clearTimeout(timeout);
       };
     }
   }, [currentPhraseIndex]);
+
+  useEffect(() => {
+    const keyboardWillShowListener = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      (event) => {
+        setKeyboardHeight(event.endCoordinates.height);
+      },
+    );
+
+    const keyboardWillHideListener = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      () => {
+        setKeyboardHeight(0);
+      },
+    );
+
+    return () => {
+      keyboardWillShowListener.remove();
+      keyboardWillHideListener.remove();
+    };
+  }, []);
+
+  const renderLoginView = () => {
+    return (
+      <Animated.View style={[styles.viewContainer, menuContentAnimatedStyle]}>
+        <View style={styles.logoSection}>
+          <View style={styles.logoContainer}>
+            <Image source={logoSource} style={styles.logo} />
+            <Text style={styles.appName}>Dukem Kieli</Text>
+          </View>
+          <View style={styles.logoContainer}>
+            <Text style={styles.rating}>Start today</Text>
+          </View>
+        </View>
+        <View style={styles.buttonsContainer}>
+          <Pressable style={styles.loginButton}
+            onPress={() => console.log("Login with Apple")}>
+          
+            </Pressable>
+          </View>
+      </Animated.View>
+    );
+  };
+
+  const dynamicMenuHeight =
+    keyboardHeight > 0 ? MENU_HEIGHT + keyboardHeight + 50 : MENU_HEIGHT + 100;
   return (
     <View
       style={{
@@ -161,6 +250,26 @@ export default function IntroScreen() {
           </Text>
         </Animated.View>
       </View>
+
+      {/* sliding menu with dynamic height */}
+      {/* TODO: gesture handler (slide up and slide down motion) */}
+      <Animated.View
+        style={[
+          styles.menuContainer,
+          menuAnimtedStyle,
+          {
+            height: dynamicMenuHeight,
+            paddingBottom: insets.bottom + 30,
+          },
+        ]}
+      >
+        <Pressable style={styles.handleContainer} onPress={handlePress}>
+          <View style={styles.handle} />
+        </Pressable>
+        <View style={styles.menuContent}>
+          {currentView === "login" ? renderLoginView() : <></>}
+        </View>
+      </Animated.View>
     </View>
   );
 }
