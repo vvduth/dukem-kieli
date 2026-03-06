@@ -12,6 +12,7 @@ import { Image } from "react-native";
 import { Colors } from "@/constants/theme";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEffect, useState } from "react";
+import { AntDesign, Fontisto } from "@expo/vector-icons";
 import Animated, {
   Extrapolation,
   interpolate,
@@ -22,6 +23,8 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import EmailAuth from "./EmailAuth";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 
 const { width, height } = Dimensions.get("window");
 const MENU_HEIGHT = 250;
@@ -91,13 +94,38 @@ export default function IntroScreen() {
       opacity: menuContentOpacity.value,
     };
   });
+
+  const panGesture = Gesture.Pan().onEnd((event) => {
+    "worklet";
+    const swipeThreshold = 50;
+    const isUpSwipe = event.translationY < -swipeThreshold;
+    const isDownSwipe = event.translationY > swipeThreshold;
+    if (!isUpSwipe) {
+      // open menu
+      menuTranslateY.value = withSpring(0, {
+        damping: 15,
+        stiffness: 150,
+        mass: 1,
+      });
+    } else if (isDownSwipe) {
+      // close menu
+      menuTranslateY.value = withSpring(CLOSED_POSITION, {
+        damping: 15,
+        stiffness: 150,
+        mass: 1,
+      });
+    }
+  });
   const animateTextIn = () => {
     mainTextOpacity.value = withTiming(1, { duration: 1200 });
     scriptedTextOpacity.value = withDelay(
       800,
       withTiming(1, { duration: 800 }),
     );
-    menuContentOpacity.value = withDelay(1200, withTiming(1, { duration: 800 }));
+    menuContentOpacity.value = withDelay(
+      1200,
+      withTiming(1, { duration: 800 }),
+    );
   };
 
   const animateScriptedTextOut = () => {
@@ -113,6 +141,18 @@ export default function IntroScreen() {
       stiffness: 150,
       mass: 1,
     });
+  };
+
+  const animateToEmailView = (to: "email" | "login") => {
+    menuContentOpacity.value = withTiming(0, {
+      duration: 300,
+    });
+    setTimeout(() => {
+      setCurrentView(to);
+      menuContentOpacity.value = withTiming(1, {
+        duration: 300,
+      });
+    }, 200);
   };
 
   const handlePress = () => {
@@ -200,12 +240,29 @@ export default function IntroScreen() {
           </View>
         </View>
         <View style={styles.buttonsContainer}>
-          <Pressable style={styles.loginButton}
-            onPress={() => console.log("Login with Apple")}>
-          
-            </Pressable>
-          </View>
+          <Pressable
+            style={styles.loginButton}
+            onPress={() => animateToEmailView("email")}
+          >
+            <Fontisto
+              name="email"
+              size={16}
+              style={styles.googleIcon}
+              color="white"
+            />
+            <Text style={styles.buttonText}>Continue with Email </Text>
+          </Pressable>
+        </View>
       </Animated.View>
+    );
+  };
+
+  const renderEmailView = () => {
+    return (
+      <EmailAuth
+        onBack={() => animateToEmailView("login")}
+        menuContentAnimatedStyle={menuContentAnimatedStyle}
+      />
     );
   };
 
@@ -252,24 +309,26 @@ export default function IntroScreen() {
       </View>
 
       {/* sliding menu with dynamic height */}
-      {/* TODO: gesture handler (slide up and slide down motion) */}
-      <Animated.View
-        style={[
-          styles.menuContainer,
-          menuAnimtedStyle,
-          {
-            height: dynamicMenuHeight,
-            paddingBottom: insets.bottom + 30,
-          },
-        ]}
-      >
-        <Pressable style={styles.handleContainer} onPress={handlePress}>
-          <View style={styles.handle} />
-        </Pressable>
-        <View style={styles.menuContent}>
-          {currentView === "login" ? renderLoginView() : <></>}
-        </View>
-      </Animated.View>
+
+      <GestureDetector gesture={panGesture}>
+        <Animated.View
+          style={[
+            styles.menuContainer,
+            menuAnimtedStyle,
+            {
+              height: dynamicMenuHeight,
+              paddingBottom: insets.bottom + 30,
+            },
+          ]}
+        >
+          <Pressable style={styles.handleContainer} onPress={handlePress}>
+            <View style={styles.handle} />
+          </Pressable>
+          <View style={styles.menuContent}>
+            {currentView === "login" ? renderLoginView() : renderEmailView()}
+          </View>
+        </Animated.View>
+      </GestureDetector>
     </View>
   );
 }

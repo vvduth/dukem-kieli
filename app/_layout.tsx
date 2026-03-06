@@ -14,6 +14,9 @@ import { ActivityIndicator, View } from "react-native";
 import { StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import IntroScreen from "@/components/auth/IntroScreen";
+import {Toaster} from "sonner-native";
+import 'react-native-reanimated'
+import { useDeepLinking } from "@/hooks/useDeepLinking";
 export const unstable_settings = {
   anchor: "(tabs)",
 };
@@ -24,6 +27,9 @@ function RootLayoutNav() {
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
+
+  // handle deep linking for magic link sign in
+  useDeepLinking();
 
   if (!loaded || loading) {
     return (
@@ -41,6 +47,7 @@ function RootLayoutNav() {
       value={DefaultTheme}>
         <GestureHandlerRootView style={styles.container}>
             <IntroScreen  />
+            <Toaster />
           </GestureHandlerRootView>
 
       </ThemeProvider>
@@ -55,6 +62,7 @@ function RootLayoutNav() {
           options={{ presentation: "modal", title: "Modal" }}
         />
       </Stack>
+      <Toaster />
       <StatusBar style="auto" />
     </ThemeProvider>
   );
