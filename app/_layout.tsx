@@ -13,6 +13,7 @@ import { useAuth } from "@/ctx/AuthContext";
 import { ActivityIndicator, View } from "react-native";
 import { StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import IntroScreen from "@/components/auth/IntroScreen";
 export const unstable_settings = {
   anchor: "(tabs)",
 };
@@ -32,12 +33,14 @@ function RootLayoutNav() {
     );
   }
 
+  console.log("Session:", session);
+
   if (!session) {
     return (
       <ThemeProvider
       value={DefaultTheme}>
         <GestureHandlerRootView style={styles.container}>
-            
+            <IntroScreen  />
           </GestureHandlerRootView>
 
       </ThemeProvider>
