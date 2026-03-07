@@ -13,6 +13,9 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { supabase } from "@/utils/supabase";
+import { useAuth } from "@/ctx/AuthContext";
+import { toast } from "sonner-native";
 
 interface Feature {
   icon: keyof typeof Ionicons.glyphMap;
@@ -85,6 +88,7 @@ const plans: { annual: Plan; monthly: Plan } = {
 };
 
 const { width } = Dimensions.get("window");
+
 export function Paywall({
   visible,
   onClose,
@@ -96,8 +100,30 @@ export function Paywall({
     "annual",
   );
   const [isStartingTrial, setIsStartingTrial] = useState(false);
+
+  const { refreshProfile } = useAuth();
+
   const selectedPlan = plans[billingCycle];
-  const handleStartTrial = () => {};
+
+  const handleStartTrial = async () => {
+    try {
+      setIsStartingTrial(true);
+
+      const { error } = await supabase.functions.invoke("start-trial", {
+        body: { planId: selectedPlan.id },
+      });
+
+      if (error) throw error;
+
+      await refreshProfile();
+      onClose();
+    } catch (err) {
+      console.error("Failed to start trial:", err);
+      toast.error("Could not start trial. Please try again.");
+    } finally {
+      setIsStartingTrial(false);
+    }
+  };
   return (
     <Modal
       visible={visible}

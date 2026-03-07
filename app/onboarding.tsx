@@ -1,25 +1,23 @@
-import React from "react";
+import { Paywall } from "@/components/subscription/Paywall";
+import { ThemedText } from "@/components/themed-text";
+import { Colors } from "@/constants/theme";
+import { useAuth } from "@/ctx/AuthContext";
+import { supabase } from "@/utils/supabase";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { router } from "expo-router";
+import { useState } from "react";
 import {
-  View,
-  Text,
   KeyboardAvoidingView,
   Platform,
-  TouchableOpacity,
-  TextInput,
   ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
-import { useState } from "react";
-import { StyleSheet } from "react-native";
-import { Colors } from "@/constants/theme";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import { ThemedText } from "@/components/themed-text";
-import { supabase } from "@/utils/supabase";
-import { useAuth } from "@/ctx/AuthContext";
 import { toast } from "sonner-native";
-import { Paywall } from "@/components/subscription/Paywall";
 
 const LEVELS = [
   {
@@ -77,8 +75,10 @@ const INTERESTS = [
   "Politics",
   "Sports",
 ];
-const OnboardingScreen = () => {
+
+export default function OnboardingScreen() {
   const colors = Colors["light"];
+
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
   const [level, setLevel] = useState<string | null>(null);
@@ -86,7 +86,7 @@ const OnboardingScreen = () => {
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [showPaywall, setShowPaywall] = useState(false);
 
-  const {refreshProfile} = useAuth();
+  const { refreshProfile } = useAuth();
 
   const handleBack = () => {
     if (step > 0) {
@@ -97,55 +97,58 @@ const OnboardingScreen = () => {
   };
 
   const isNextEnabled = () => {
-    if (step === 0) {
-      return name.trim().length > 0;
-    }
-    if (step === 1) {
-      return !!level;
-    }
-    if (step === 2) {
-      return motivations.length > 0;
-    }
-    if (step === 3) {
-      return selectedInterests.length > 0;
-    }
+    if (step === 0) return name.trim().length > 0;
+    if (step === 1) return !!level;
+    if (step === 2) return motivations.length > 0;
+    if (step === 3) return selectedInterests.length > 0;
     return false;
   };
+
   const saveProfile = async () => {
     try {
-      const {data:{
-        user
-      }} = await supabase.auth.getUser();
-      if (!user) throw new Error("User not found");
-      const {error} = await supabase.from("profiles").upsert({
-        id: user.id,
-        full_name: name,
-        finnish_level: level,
-        motivations,
-        interests: selectedInterests,
-        onboarding_completed: true,
-        updated_at: new Date().toISOString(),
-      })
-      if (error) {
-        throw error;
-      }
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Now user found");
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          full_name: name,
+          finnish_level: level,
+          motivations: motivations,
+          interests: selectedInterests,
+          onboarding_completed: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+
+      if (error) throw error;
+
       await refreshProfile();
 
-      // todo: show paywall
       setShowPaywall(true);
-    } catch (error) {
-      console.error("Error saving profile:", error);
-      toast.error('failed to save your profile. please try again')
+    } catch (err) {
+      console.error("Error saving profile:", err);
+      toast.error("Failed to save your profile. Plase try again.");
     }
-  }
+  };
+
+  const handleContinue = () => {
+    if (step < 3) {
+      setStep(step + 1);
+    } else {
+      saveProfile();
+    }
+  };
 
   const toggleMotivation = (id: string) => {
-     if (motivations.includes(id)) {
+    if (motivations.includes(id)) {
       setMotivations(motivations.filter((m) => m !== id));
     } else {
       setMotivations([...motivations, id]);
     }
-  }
+  };
 
   const toggleInterest = (interest: string) => {
     if (selectedInterests.includes(interest)) {
@@ -153,92 +156,75 @@ const OnboardingScreen = () => {
     } else {
       setSelectedInterests([...selectedInterests, interest]);
     }
-  }
-
-  const handleContinue = () => {
-    if (step < 3) {
-      setStep(step + 1);
-    } else {
-      // save profile data and show paywall
-      saveProfile();
-    }
   };
 
-  const renderStep0Name = () => {
-    return (
-      <View style={styles.stepContainer}>
-        <ThemedText type="title" style={styles.title}>
-          What should we call you?
-        </ThemedText>
-        <ThemedText style={styles.subtitle}>
-          Your name will be used to personalize your lessons.
-        </ThemedText>
+  const renderStep0Name = () => (
+    <View style={styles.stepContainer}>
+      <ThemedText type="title" style={styles.title}>
+        What should we call you?
+      </ThemedText>
+      <ThemedText style={styles.subtitle}>
+        Your name will be used to personalize your lessons.
+      </ThemedText>
 
-        <TextInput
-          style={[
-            styles.input,
-            { color: colors.text, borderColor: colors.icon },
-          ]}
-          placeholder="Your Name"
-          placeholderTextColor="#9CA3AF"
-          value={name}
-          onChangeText={setName}
-          autoFocus
-        />
-      </View>
-    );
-  };
+      <TextInput
+        style={[styles.input, { color: colors.text, borderColor: colors.icon }]}
+        placeholder="Your Name"
+        placeholderTextColor="#9CA3AF"
+        value={name}
+        onChangeText={setName}
+        autoFocus
+      />
+    </View>
+  );
 
-  const renderStep1Level = () => {
-    return (
-      <View style={styles.stepContainer}>
-        <ThemedText type="title" style={styles.title}>
-          How much Finnish do you know?
-        </ThemedText>
+  const renderStep1Level = () => (
+    <View style={styles.stepContainer}>
+      <ThemedText type="title" style={styles.title}>
+        How much Finnish do you know bro?
+      </ThemedText>
 
-        <ScrollView
-          contentContainerStyle={{ rowGap: 16 }}
-          style={{ marginTop: 20 }}
-        >
-          {LEVELS.map((l) => (
-            <TouchableOpacity
-              key={l.id}
+      <ScrollView
+        contentContainerStyle={{ rowGap: 16 }}
+        style={{ marginTop: 20 }}
+      >
+        {LEVELS.map((l) => (
+          <TouchableOpacity
+            key={l.id}
+            style={[
+              styles.optionCard,
+              level === l.id && {
+                borderColor: Colors.primaryAccentColor,
+                backgroundClip: "#fff5f0",
+              },
+            ]}
+            onPress={() => setLevel(l.id)}
+          >
+            <ThemedText
               style={[
-                styles.optionCard,
-                level === l.id && {
-                  borderColor: Colors.primaryAccentColor,
-                  backgroundClip: "#fff5f0",
-                },
+                styles.optionTitle,
+                level === l.id && { color: Colors.primaryAccentColor },
               ]}
-              onPress={() => setLevel(l.id)}
             >
-              <ThemedText
-                style={[
-                  styles.optionTitle,
-                  level === l.id && { color: Colors.primaryAccentColor },
-                ]}
-              >
-                {l.title}
-              </ThemedText>
-              <ThemedText style={[styles.optionDescription]}>
-                {l.description}
-              </ThemedText>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-    );
-  };
-  const renderStep2Motivation = () => {
-    return (
-      <View style={styles.stepContainer}>
-        <ThemedText type="title" style={styles.title}>
-          Why are you learning Finnish?
-        </ThemedText>
-        <ThemedText style={styles.subtitle}>Select all the apply.
+              {l.title}
+            </ThemedText>
+            <ThemedText style={[styles.optionDescription]}>
+              {l.description}
+            </ThemedText>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
 
-        </ThemedText>
-        <ScrollView
+  const renderStep2Motivation = () => (
+    <View style={styles.stepContainer}>
+      <ThemedText type="title" style={styles.title}>
+        Why are you learning Finnish?
+      </ThemedText>
+      <ThemedText style={styles.subtitle}>Select all the apply.</ThemedText>
+
+      <ScrollView
         contentContainerStyle={{ rowGap: 16 }}
         style={{ marginTop: 10 }}
       >
@@ -275,21 +261,17 @@ const OnboardingScreen = () => {
           );
         })}
       </ScrollView>
-      </View>
-    );
-  };
-  const renderStep3Interests = () => {
-    return (
-      <View style={styles.stepContainer}>
-        <ThemedText type="title" style={styles.title}>
-          What are your interests?
-        </ThemedText>
-        <ThemedText style={styles.subtitle}>Select all the apply.
+    </View>
+  );
 
-        </ThemedText>
-        <View
-        style={styles.tagsContainer}
-      >
+  const renderStep3Interests = () => (
+    <View style={styles.stepContainer}>
+      <ThemedText type="title" style={styles.title}>
+        What are you interested in?
+      </ThemedText>
+      <ThemedText style={styles.subtitle}>Select all the apply.</ThemedText>
+
+      <View style={styles.tagsContainer}>
         {INTERESTS.map((i) => {
           const isSelected = selectedInterests.includes(i);
 
@@ -305,12 +287,8 @@ const OnboardingScreen = () => {
               ]}
               onPress={() => toggleInterest(i)}
             >
-              
               <ThemedText
-                style={[
-                  styles.tagText,
-                  isSelected && { color: "#FFF" },
-                ]}
+                style={[styles.tagText, isSelected && { color: "#FFF" }]}
               >
                 {i}
               </ThemedText>
@@ -318,9 +296,9 @@ const OnboardingScreen = () => {
           );
         })}
       </View>
-      </View>
-    );
-  };
+    </View>
+  );
+
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -360,14 +338,8 @@ const OnboardingScreen = () => {
             {step === 3 && renderStep3Interests()}
           </Animated.View>
         </View>
-        <View
-          style={[
-            styles.footer,
-            {
-              zIndex: 10,
-            },
-          ]}
-        >
+
+        <View style={[styles.footer, { zIndex: 10 }]}>
           <TouchableOpacity
             style={[
               styles.continueButton,
@@ -381,16 +353,19 @@ const OnboardingScreen = () => {
             disabled={!isNextEnabled()}
           >
             <ThemedText style={styles.continueButtonText}>
-              {step === 3 ? "Finish" : "Continue"}
+              {step === 3 ? "Get Started" : "Continue"}
             </ThemedText>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-      <Paywall visible={showPaywall} 
-      onClose={() => router.replace("/explore")} />
+
+      <Paywall
+        visible={showPaywall}
+        onClose={() => router.replace("/lessons")}
+      />
     </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -502,5 +477,3 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 });
-
-export default OnboardingScreen;
