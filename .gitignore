@@ -44,3 +44,4 @@ app-example
 /assets/videos/broll.mov
 .env
 /supabase/.temp
+.github

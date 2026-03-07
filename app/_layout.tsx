@@ -3,7 +3,7 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
-import { Stack } from "expo-router";
+import { router, Stack, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 import { useFonts } from "expo-font";
@@ -17,6 +17,7 @@ import IntroScreen from "@/components/auth/IntroScreen";
 import {Toaster} from "sonner-native";
 import 'react-native-reanimated'
 import { useDeepLinking } from "@/hooks/useDeepLinking";
+import { useEffect } from "react";
 export const unstable_settings = {
   anchor: "(tabs)",
 };
@@ -24,12 +25,26 @@ export const unstable_settings = {
 function RootLayoutNav() {
   const { session, loading, profile } = useAuth();
   const colorScheme = useColorScheme();
+  const segments = useSegments();
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
 
   // handle deep linking for magic link sign in
   useDeepLinking();
+
+  useEffect(() => {
+    if (!loading && session){
+      if (!profile || !profile.onboarding_completed){ 
+        const inOnboarding = segments[0] === "onboarding";
+
+        if (!inOnboarding) {
+          // redirect to onboarding if not completed
+          router.replace("/onboarding");
+        }
+      }
+    }
+  }, [session, profile,loading, segments]);
 
   if (!loaded || loading) {
     return (
@@ -55,12 +70,12 @@ function RootLayoutNav() {
   }
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="modal"
-          options={{ presentation: "modal", title: "Modal" }}
-        />
+      <Stack screenOptions={{
+        headerShown: false
+      }}>
+        <Stack.Screen name="(tabs)"  />
+        <Stack.Screen name="onboarding" />
+    
       </Stack>
       <Toaster />
       <StatusBar style="auto" />
