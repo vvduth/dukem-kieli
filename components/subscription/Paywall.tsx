@@ -1,9 +1,18 @@
-import { Modal, Pressable, Text, View } from "react-native";
 import { Colors } from "@/constants/theme";
-import { StyleSheet, Dimensions } from "react-native";
+import {
+  Dimensions,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import { useState } from "react";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 interface Feature {
   icon: keyof typeof Ionicons.glyphMap;
@@ -83,6 +92,12 @@ export function Paywall({
   visible: boolean;
   onClose: () => void;
 }) {
+  const [billingCycle, setBillingCycle] = useState<"annual" | "monthly">(
+    "annual",
+  );
+  const [isStartingTrial, setIsStartingTrial] = useState(false);
+  const selectedPlan = plans[billingCycle];
+  const handleStartTrial = () => {};
   return (
     <Modal
       visible={visible}
@@ -99,14 +114,189 @@ export function Paywall({
           locations={[0, 0.4, 1]}
         />
         <View style={styles.header}>
-          <Pressable style={styles.closeButton}
-            onPress={onClose}
-          >
+          <Pressable style={styles.closeButton} onPress={onClose}>
             <Ionicons name="close" size={24} color="#fff" />
           </Pressable>
           <Text style={styles.headerTitle}>Go premium</Text>
-          <Text style={styles.headerSpacer}> </Text>
+          <Text style={styles.headerSpacer} />
         </View>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* intro header */}
+          <View style={styles.introSection}>
+            <Text style={styles.title}>
+              Join over
+              <Text style={styles.highlight}>1 millions </Text>
+              leaners
+            </Text>
+            <Text style={styles.subtitle}>
+              get going with the world&apos;s most advanced speaking curriculum.
+            </Text>
+          </View>
+          {/* features section */}
+          <View style={styles.featuresContainer}>
+            {features.map((feature, index) => (
+              <View key={index} style={styles.featureCard}>
+                <View style={styles.featureIcon}>
+                  <Ionicons
+                    name={feature.icon}
+                    size={24}
+                    color={Colors.primaryAccentColor}
+                  />
+                </View>
+                <Text style={styles.featureTitle}>{feature.title}</Text>
+                <Text style={styles.featureDescription}>
+                  {feature.description}
+                </Text>
+              </View>
+            ))}
+          </View>
+          {/* billing cycle toggle */}
+          <View style={styles.toggleContainer}>
+            <Pressable
+              style={[
+                styles.toggleButton,
+                billingCycle === "annual" && styles.toggleButtonActive,
+              ]}
+              onPress={() => setBillingCycle("annual")}
+            >
+              <Text
+                style={[
+                  styles.toggleText,
+                  billingCycle === "annual" && styles.toggleTextActive,
+                ]}
+              >
+                Annual
+              </Text>
+              {billingCycle === "annual" && (
+                <View style={styles.savingsBadge}>
+                  <Text style={styles.savingsText}>{plans.annual.savings}</Text>
+                </View>
+              )}
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.toggleButton,
+                billingCycle === "monthly" && styles.toggleButtonActive,
+              ]}
+              onPress={() => setBillingCycle("monthly")}
+            >
+              <Text
+                style={[
+                  styles.toggleText,
+                  billingCycle === "monthly" && styles.toggleTextActive,
+                ]}
+              >
+                Monthly
+              </Text>
+              {billingCycle === "monthly" && (
+                <View style={styles.savingsBadge}>
+                  <Text style={styles.savingsText}>
+                    {plans.monthly.savings}
+                  </Text>
+                </View>
+              )}
+            </Pressable>
+          </View>
+          {/* plans */}
+          <View style={styles.planCard}>
+            {selectedPlan.recommended && (
+              <View style={styles.recommendedBadge}>
+                <Text style={styles.recommendedText}>Best value</Text>
+              </View>
+            )}
+            <View style={styles.planHeader}>
+              <View>
+                <Text style={styles.planName}>{selectedPlan.name}</Text>
+                <Text style={styles.planBilling}>
+                  {selectedPlan.billingCycle}
+                </Text>
+              </View>
+              <View style={styles.planPriceContainer}>
+                <Text style={styles.planPrice}>{selectedPlan.price} €</Text>
+                <Text style={styles.planPeriod}>/{selectedPlan.period}</Text>
+              </View>
+            </View>
+            <View style={styles.planFeatures}>
+              {selectedPlan.features.map((feature, index) => (
+                <View key={index} style={styles.planFeatureItem}>
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={20}
+                    color={"#34c759"}
+                  />
+                  <Text style={styles.planFeatureText}>{feature}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+          {/* cta button */}
+          <Pressable
+            style={[
+              styles.ctaButton,
+              isStartingTrial && {
+                opacity: 0.7,
+              },
+            ]}
+            onPress={handleStartTrial}
+            disabled={isStartingTrial}
+          >
+            <Ionicons
+              name="star"
+              size={20}
+              color={"#fff"}
+              style={styles.ctaIcon}
+            />
+            <Text style={styles.ctaText}>
+              {isStartingTrial ? "Starting..." : "Start Trial"}
+            </Text>
+          </Pressable>
+          {/* footer */}
+          <Text style={styles.footer}>Try 7 days free. cancel anytime</Text>
+          <Text style={styles.footerNote}>
+            We&apos;ll charge you only after the trial ends.
+          </Text>
+
+          {/* rating */}
+          <View style={styles.rating}>
+            <View style={styles.stars}>
+              {[...Array(5)].map((_, index) => (
+                <Ionicons key={index} name="star" size={18} color={"#FFD700"} />
+              ))}
+            </View>
+            <Text style={styles.ratingText}>4.8 / 5 stars</Text>
+            <Text style={styles.ratingSubtext}>
+              Rated by over 10,000 learners worldwide
+            </Text>
+          </View>
+
+          {/* testimonial */}
+          <View style={styles.testimonial}>
+            <Text style={styles.testimonialText}>This app is legit bro!</Text>
+            <Text style={styles.testimonialAuthor}>
+              - App Store user from USA
+            </Text>
+          </View>
+          {/* legal links */}
+          <View style={styles.legalLinks}>
+            <Pressable>
+              <Text style={styles.legalLink}>Restore Purchases</Text>
+            </Pressable>
+            <Text style={styles.legalSeparator}>*</Text>
+            <Pressable>
+              <Text style={styles.legalLink}>Terms of Service</Text>
+            </Pressable>
+            <Text style={styles.legalSeparator}>*</Text>
+            <Pressable>
+              <Text style={styles.legalLink}>Privacy Policy</Text>
+            </Pressable>
+          </View>
+          <View style={styles.bottomSpacing} />
+        </ScrollView>
       </SafeAreaView>
     </Modal>
   );

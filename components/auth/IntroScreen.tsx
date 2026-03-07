@@ -24,7 +24,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import EmailAuth from "./EmailAuth";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 
 const { width, height } = Dimensions.get("window");
 const MENU_HEIGHT = 250;
@@ -310,7 +310,8 @@ export default function IntroScreen() {
 
       {/* sliding menu with dynamic height */}
 
-      <GestureDetector gesture={panGesture}>
+      
+        <GestureDetector gesture={panGesture}>
         <Animated.View
           style={[
             styles.menuContainer,
@@ -329,6 +330,7 @@ export default function IntroScreen() {
           </View>
         </Animated.View>
       </GestureDetector>
+      
     </View>
   );
 }

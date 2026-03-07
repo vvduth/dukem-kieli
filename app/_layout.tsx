@@ -70,7 +70,8 @@ function RootLayoutNav() {
   }
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <Stack screenOptions={{
+      <GestureHandlerRootView style={styles.container}>
+        <Stack screenOptions={{
         headerShown: false
       }}>
         <Stack.Screen name="(tabs)"  />
@@ -79,6 +80,7 @@ function RootLayoutNav() {
       </Stack>
       <Toaster />
       <StatusBar style="auto" />
+        </GestureHandlerRootView>
     </ThemeProvider>
   );
 }

@@ -120,7 +120,7 @@ const OnboardingScreen = () => {
       const {error} = await supabase.from("profiles").upsert({
         id: user.id,
         full_name: name,
-        finish_level: level,
+        finnish_level: level,
         motivations,
         interests: selectedInterests,
         onboarding_completed: true,
