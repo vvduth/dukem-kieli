@@ -6,6 +6,8 @@ import ConfirmDialog from "../ui/ConfirmDialog";
 import { router } from "expo-router";
 import {Audio} from 'expo-av'
 import AudioPrompt from "./AudioPrompt";
+import * as Speech from 'expo-speech';
+import { recordQuestionListened } from "@/lib/speakingListeningStats";
 
 interface WrongQuestion {
   english: string;
@@ -72,6 +74,61 @@ export default function LessonContent({
     const [hasStartedFirstPlay, sethasStartedFirstPlay] = useState(false)
 
     const progress = ((currentQuestionIndex + 1) / questions.length )* 100;
+    
+    const finishListening = () => {
+      if (hasListenedToAudio) return;
+      setHasListenedToAudio(true)
+      setIsSpeechPlaying(false)
+      void recordQuestionListened();
+      Animated.parallel([
+        Animated.timing(audioSectionAnimHeight, {
+          toValue: 200,
+          duration: 800,
+          useNativeDriver: false,
+        }),
+        Animated.timing(instructionOpacity, {
+          toValue: 1,
+          duration: 800,
+          delay: 200,
+          useNativeDriver: true,
+        })
+      ]).start()
+    }
+    const playAudio = async () => {
+      const textToSpeech = currentQuestion.mandarin.hanzi || currentQuestion.mandarin.pinyin ;
+      if (isSpeechPlaying) {
+        Speech.stop();
+        setIsSpeechPlaying(false);
+        return;
+      }
+      setIsSpeechPlaying(true);
+      Speech.speak(textToSpeech, {
+        language: 'zh-CN',
+        onDone: () => {setIsSpeechPlaying(false);
+          finishListening();
+        },
+        onStopped: () => {
+          setIsSpeechPlaying(false);
+        },
+        onError: () => setIsSpeechPlaying(false),
+      })
+    }
+
+    const handleRevealMandarin = () => {
+      if (showMandarin) {
+        Animated.timing(fadeAnim,{
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }).start(() => setShowMandarin(false))
+      } else {
+        Animated.timing(fadeAnim,{
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }).start(() => setShowMandarin(true))
+      }
+    }
     return (
         <View style={styles.container}>
             <ConfirmDialog 
@@ -112,12 +169,10 @@ export default function LessonContent({
                   isPlaying={isSpeechPlaying}
                   isRecognizing={isRecognizing}
                   hasListenedToAudio={hasListenedToAudio}
-                  onPlay={() => {
-                    
-                  }}
+                  onPlay={playAudio}
                   onStartRecord={() => {}}
                   onStopRecord={() => {}}
-                  onRevealMandarin={() => {}}
+                  onRevealMandarin={handleRevealMandarin}
                   currentQuestion={currentQuestion}
                   showMandarin={showMandarin}
                   selectedOption={selectedOption}
