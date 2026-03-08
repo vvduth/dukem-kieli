@@ -1,0 +1,175 @@
+import { Question } from "@/constants/CourseData";
+import { View,Text , StyleSheet, Animated} from "react-native";
+import ProgressHeader from "./ProgressHeader";
+import { useMemo, useRef, useState } from "react";
+import ConfirmDialog from "../ui/ConfirmDialog";
+import { router } from "expo-router";
+import {Audio} from 'expo-av'
+import AudioPrompt from "./AudioPrompt";
+
+interface WrongQuestion {
+  english: string;
+  mandarin:  {
+    pinyin: string;
+    hanzi: string;
+  };
+  attempts: number;
+}
+
+export interface LessonStats {
+  correctAnswers: number;
+  totalQuestions: number;
+  accuracy: number;
+  wrongQuestions?: WrongQuestion[];
+}
+
+export default function LessonContent({
+    questions,
+    lessonId
+}:{
+    questions: Question[],
+    lessonId: string
+}) {
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+    const [exitConfirmationVisible, setExitConfirmationVisible] = useState(false);
+    const [showMandarin, setShowMandarin] = useState(false)
+    const [selectedOption, setSelectedOption] = useState<number | null>(null)
+    const [isLoading, setIsLoading] = useState(false)
+    const [showResult, setShowResult] = useState(false)
+    const [hasListenedToAudio, setHasListenedToAudio] = useState(false)
+    const [isCorrect, setIsCorrect] = useState(false)
+    const [attemptCount, setAttemptCount] = useState(0)
+    const [isRecognizing, setIsRecognizing] = useState(false)
+    const recordingRef = useState<Audio.Recording | null>(null);
+    const [transcriptiom, setTranscriptiom] = useState<{
+      expected: string,
+      said: string;
+    }|null>(null)
+    const currentQuestion = useMemo(() => {
+        return questions[currentQuestionIndex]
+    }, [currentQuestionIndex, questions])
+    const [isSpeechPlaying, setIsSpeechPlaying] = useState(false);
+
+    // Lesson complete logic
+    const [showCompleteScreen, setShowCompleteScreen] = useState(false)
+    const [lessonStats, setLessonStats] = useState<LessonStats | null>()
+    const [questionAttempts, setQuestionAttempts] = useState<
+    Record<string, number>
+    >({})
+    const [correctAnswersCount, setCorrectAnswersCount] = useState(0)
+    const [wrongQuestions, setWrongQuestions] = useState<
+    Set<number>
+    >(new Set())
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const scaleAnim = useRef(new Animated.Value(1)).current;
+    const optionAnim = useRef(new Animated.Value(0)).current;
+    const audioSectionAnimHeight = useRef(new Animated.Value(400)).current;
+    const optionSelectionAnim = useRef(new Animated.Value(0)).current;
+    const instructionOpacity = useRef(new Animated.Value(1)).current;
+    const listeningOpacity = useRef(new Animated.Value(0)).current;
+    const listeningScale = useRef(new Animated.Value(0.95)).current;
+
+    const [hasStartedFirstPlay, sethasStartedFirstPlay] = useState(false)
+
+    const progress = ((currentQuestionIndex + 1) / questions.length )* 100;
+    return (
+        <View style={styles.container}>
+            <ConfirmDialog 
+                visible={exitConfirmationVisible}
+                title="Exit Lesson"
+                description="Are you sure you want to quit?"
+                cancelLabel="Cancel"
+                confirmLabel="Exit"
+                onConfirm={() => {
+                    setExitConfirmationVisible(false);
+                    // TODO: stop what ever is playing
+                    router.push("/lessons")
+                }}
+                onCancel={() => setExitConfirmationVisible(false)}
+            />
+            <ProgressHeader 
+                progress={progress}
+                currentCount={currentQuestionIndex + 1}
+                onClose={() => setExitConfirmationVisible(true)}
+                totalCount={questions.length}
+            />
+            {/* main content */}
+            <View style={styles.content}>
+              <Animated.View
+                style={[
+                  styles.audioSection,
+                  {
+                    backgroundColor: '#F0F4FF',
+                    minHeight: audioSectionAnimHeight,
+                    flex: hasListenedToAudio ? 0 : 1,
+                    justifyContent: 'center',
+                    opacity: isLoading || showResult ? 0.6 : 1,
+                  }
+                ]}
+                pointerEvents={isLoading || showResult ? 'none' : 'auto'}
+              >
+                <AudioPrompt 
+                  isPlaying={isSpeechPlaying}
+                  isRecognizing={isRecognizing}
+                  hasListenedToAudio={hasListenedToAudio}
+                  onPlay={() => {
+                    
+                  }}
+                  onStartRecord={() => {}}
+                  onStopRecord={() => {}}
+                  onRevealMandarin={() => {}}
+                  currentQuestion={currentQuestion}
+                  showMandarin={showMandarin}
+                  selectedOption={selectedOption}
+                  scaleAnim={scaleAnim}
+                  instructionOpacity={instructionOpacity}
+                  listeningOpacity={listeningOpacity}
+                  listeningScale={listeningScale}
+                  fadeAnim={fadeAnim}
+                />
+              </Animated.View>
+            </View>
+        </View>
+    )
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  audioSection: {
+    alignItems: "center",
+    marginBottom: 40,
+    padding: 20,
+    borderRadius: 16,
+    marginTop: 20,
+  },
+  optionsSection: {
+    flex: 1,
+    marginBottom: 30,
+  },
+  bottomSection: {
+    marginBottom: 20,
+  },
+  loadingContainer: {
+    alignItems: "center",
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+  },
+  feedbackWrapper: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    zIndex: 1000,
+  },
+});

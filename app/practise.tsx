@@ -5,8 +5,9 @@ import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native";
 import VocabIntroScreen from "@/components/lesson/VocabIntroScreeen";
+import LessonContent from "@/components/lesson/LessonContent";
 export default function PractiseScreen() {
-    const { lessonId } = useLocalSearchParams();
+    const { lessonId } = useLocalSearchParams<{ lessonId: string }>();
     const [isStudyingVocabulary, setIsStudyingVocabulary] = useState(true)
     const allLessons = COURSE_DATA.chapters.flatMap((chapter) => 
     chapter.review ? [...chapter.lessons, chapter.review]: chapter.lessons);
@@ -23,15 +24,20 @@ export default function PractiseScreen() {
     if (isStudyingVocabulary) {
         return (
             <SafeAreaView style={styles.container}>
-                <VocabIntroScreen questions={questions} 
+                <VocabIntroScreen 
+                questions={questions} 
+                key={lessonId}
                 onStartLesson={() => setIsStudyingVocabulary(false)} />
             </SafeAreaView>
         )
     }
     return (
-        <View>
-
-        </View>
+        <SafeAreaView style={styles.container}>
+            <LessonContent
+            questions={questions}
+            lessonId={lessonId}
+            />
+        </SafeAreaView>
     )
 }
 

@@ -159,6 +159,11 @@ export default function VocabIntroScreen({
     })
   },[])
 
+  if (deck.total === 0) {
+    onStartLesson();
+    return null;
+  }
+
   const progressPercent =
     state.total > 0 ? (state.completed / state.total) * 100 : 0;
 
