@@ -1,7 +1,9 @@
 import { ThemedText } from "@/components/themed-text";
+import { Chapter, COURSE_DATA, Lesson } from "@/constants/CourseData";
 
 import { Colors } from "@/constants/theme";
 import { useSpeakingListeningStats } from "@/hooks/useSpeakingListeningStats";
+import { getAllProgress } from "@/lib/lessonProgress";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect } from "expo-router";
@@ -10,8 +12,20 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { ScrollView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+const MAX_STARS = 3;
+
 export default function LessonsScreen() {
   const { stats, loading, refresh } = useSpeakingListeningStats();
+  const [progress, setProgress] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    loadProgress();
+  }, []);
+
+  const loadProgress = async () => {
+    const savedProgress = await getAllProgress();
+    setProgress(savedProgress);
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -19,12 +33,104 @@ export default function LessonsScreen() {
     }, [refresh]),
   );
 
+  const handleLessonPress = (lesson: Lesson) => {
+    // Navigate to lesson details or practice screen
+    router.push({
+      pathname: "/practise",
+      params: {
+        lessonId: lesson.id,
+      },
+    })
+  }
+  const handlePracticeChapterPress = (chapter: Chapter) => {
+    if (chapter.review) {
+      router.push({
+        pathname: "/practise",
+        params: {
+          lessonId: chapter.review.id,
+        },
+      })
+    };
+    
+  }
+  const renderCompletionStatus = (count: number) => {
+    const elements = [];
+    const starsToDisplay = Math.min(count, MAX_STARS);
+    for (let i = 1; i <= MAX_STARS; i++) {
+      elements.push(
+        <Ionicons
+          key={`star-${i}`}
+          name={i <= starsToDisplay ? "star" : "star-outline"}
+          size={16}
+          style={styles.starIcon}
+          color={i <= starsToDisplay ? "#ffd780" : Colors.subduedTextColor}
+        />,
+      );
+    }
+    if (count > MAX_STARS) {
+      const extraCount = count - MAX_STARS;
+      elements.push(
+        <ThemedText
+          key={"extra-count"}
+          style={[
+            styles.extraCountText,
+            {
+              color: Colors.subduedTextColor,
+            },
+          ]}
+        >{`+${extraCount}`}</ThemedText>,
+      );
+    }
+    return <View style={styles.completionStarsContainer}>{elements}</View>;
+  };
+
+  const renderLessonNode = (lesson: Lesson, index: number) => {
+    const completionCount = progress[lesson.id] || 0;
+    const isMastered = completionCount >= MAX_STARS;
+    const alignment = index % 2 === 0 ? "flex-start" : "flex-end";
+    return (
+      <View
+        key={lesson.id}
+        style={[
+          styles.lessonNodeContainer,
+          {
+            alignItems: alignment,
+          },
+        ]}
+      >
+        <TouchableOpacity
+          style={[
+            styles.lessonBubble,
+            {
+              backgroundColor: "#fff",
+              borderColor: isMastered
+                ? Colors.primaryAccentColor
+                : Colors.borderColor,
+            },
+          ]}
+          onPress={() => handleLessonPress(lesson)}
+        >
+          <Ionicons
+            name={lesson.icon}
+            size={28}
+            color={Colors.primaryAccentColor}
+          />
+          <View style={styles.lessonTextContainer}>
+            <ThemedText style={styles.lessonTitle}>{lesson.title}</ThemedText>
+            {renderCompletionStatus(completionCount)}
+          </View>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView
       style={{
         flex: 1,
         backgroundColor: Colors.light.background,
       }}
+      edges={["top", 'left', 'right']}
     >
       <View style={styles.container}>
         <View
@@ -103,6 +209,47 @@ export default function LessonsScreen() {
             </TouchableOpacity>
           </View>
         </View>
+        {/* main content */}
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
+        >
+          {COURSE_DATA.chapters.map((chapter) => (
+            <View key={chapter.id} style={[styles.chapterContainer]}>
+              <View style={styles.chapterHeader}>
+                <ThemedText style={styles.chapterNumberText}>
+                  CHAPTER {chapter.id}
+                </ThemedText>
+                <ThemedText style={styles.chapterTitleText}>
+                  {chapter.title}
+                </ThemedText>
+              </View>
+              <View style={styles.lessonsWrapper}>
+                {chapter.lessons.map((lesson, index) =>
+                  renderLessonNode(lesson, index),
+                )}
+              </View>
+              {chapter.review && (
+                <TouchableOpacity
+                  style={[
+                    styles.practiceChapterButton,
+                    {
+                      backgroundColor: Colors.primaryAccentColor,
+                    }
+                  ]}
+                  onPress={() => handlePracticeChapterPress(chapter)}
+                >
+                  <Ionicons name="flash" size={20} color="#fff" />
+                  <ThemedText
+                    style={styles.practiceChapterButtonText}
+                  >
+                    Review &apos;{chapter.title}&apos;
+                  </ThemedText>
+                </TouchableOpacity>
+              )}
+            </View>
+          ))}
+        </ScrollView>
       </View>
     </SafeAreaView>
   );

@@ -181,7 +181,7 @@ export default function OnboardingScreen() {
   const renderStep1Level = () => (
     <View style={styles.stepContainer}>
       <ThemedText type="title" style={styles.title}>
-        How much Finnish do you know bro?
+        How much Chinese do you know bro?
       </ThemedText>
 
       <ScrollView
@@ -220,7 +220,7 @@ export default function OnboardingScreen() {
   const renderStep2Motivation = () => (
     <View style={styles.stepContainer}>
       <ThemedText type="title" style={styles.title}>
-        Why are you learning Finnish?
+        Why are you learning Chinese?
       </ThemedText>
       <ThemedText style={styles.subtitle}>Select all the apply.</ThemedText>
 
