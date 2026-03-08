@@ -1,6 +1,7 @@
 import { ThemedText } from "@/components/themed-text";
 
 import { Colors } from "@/constants/theme";
+import { useSpeakingListeningStats } from "@/hooks/useSpeakingListeningStats";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect } from "expo-router";
@@ -10,42 +11,101 @@ import { ScrollView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function LessonsScreen() {
-    return(
-        <SafeAreaView style={{
-            flex: 1,
-            backgroundColor: Colors.light.background,
-        }}>
-            <View style={styles.container}>
-                <View style={[styles.header,{
-                    borderBottomColor: Colors.borderColor,
-                }]}>
-                    <TouchableOpacity>
-                        <Text
-                            style={styles.headerTitle}
-                        >This week</Text>
-                        <Text style={[styles.headerSubtitle,
-                            {color: Colors.subduedTextColor}
-                        ]}>
-                            In reviews
-                        </Text>
-                    </TouchableOpacity>
-                    <View style={styles.headerRight}>
-                        <TouchableOpacity
-                            style={styles.statItem}
-                        >
-                            <View style={styles.statValueContainer}>
-                                <Text>{20} minutes spoken</Text>
-                                <Ionicons name='arrow-up'
-                                size={14} color='#34c759'
-                                style={styles.starIcon}
-                                />
-                            </View>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </View>
-        </SafeAreaView>
-    )
+  const { stats, loading, refresh } = useSpeakingListeningStats();
+
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh]),
+  );
+
+  return (
+    <SafeAreaView
+      style={{
+        flex: 1,
+        backgroundColor: Colors.light.background,
+      }}
+    >
+      <View style={styles.container}>
+        <View
+          style={[
+            styles.header,
+            {
+              borderBottomColor: Colors.borderColor,
+            },
+          ]}
+        >
+          <TouchableOpacity>
+            <Text style={styles.headerTitle}>This week</Text>
+            <Text
+              style={[
+                styles.headerSubtitle,
+                { color: Colors.subduedTextColor },
+              ]}
+            >
+              In reviews
+            </Text>
+          </TouchableOpacity>
+          <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.statItem}>
+              <View style={styles.statValueContainer}>
+                <Text style={styles.statValue}>
+                  {loading
+                    ? "Loading..."
+                    : Math.floor(stats?.minutesSpoken || 0)}
+                </Text>
+                <Ionicons
+                  name="arrow-up"
+                  size={14}
+                  color="#34c759"
+                  style={styles.starIcon}
+                />
+                <Text style={styles.statChangePositive}>
+                  {Math.floor(stats?.weeklyChange.spoken || 0)}
+                </Text>
+              </View>
+              <Text
+                style={[styles.statLabel, { color: Colors.subduedTextColor }]}
+              >
+                minutes spoken bro.
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <View
+            style={[
+              styles.headerSeparator,
+              { backgroundColor: Colors.borderColor },
+            ]}
+          />
+          <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.statItem}>
+              <View style={styles.statValueContainer}>
+                <Text style={styles.statValue}>
+                  {loading
+                    ? "Loading..."
+                    : Math.floor(stats?.minutesSpoken || 0)}
+                </Text>
+                <Ionicons
+                  name="arrow-up"
+                  size={14}
+                  color="#34c759"
+                  style={styles.starIcon}
+                />
+                <Text style={styles.statChangePositive}>
+                  {Math.floor(stats?.weeklyChange.listened || 0)}
+                </Text>
+              </View>
+              <Text
+                style={[styles.statLabel, { color: Colors.subduedTextColor }]}
+              >
+                minutes listened bro.
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
