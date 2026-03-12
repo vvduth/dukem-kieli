@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { ThemedText } from "../themed-text";
+import { AudioWaveForm } from "./AudioWaveForm";
 
 export default function AudioPrompt({
   isPlaying,
@@ -105,20 +106,64 @@ export default function AudioPrompt({
           ) : (
             <Ionicons name="play" size={32} color="#fff" />
           )}
-          {selectedOption && isRecognizing ? (
-            <View style={styles.recordingStatus}>
-              <View style={[styles.recordingIndicatorLarge]}>
-                <View style={styles.recordingDotLarge}></View>
-              </View>
-              <ThemedText
-                style={styles.recordingText}
-              >
-                Recording...
-              </ThemedText>
-            </View>
-          ) : null}
         </Animated.View>
       </Pressable>
+      {selectedOption && isRecognizing ? (
+        <View style={styles.recordingStatus}>
+          <View style={[styles.recordingIndicatorLarge]}>
+            <View style={styles.recordingDotLarge}></View>
+          </View>
+          <ThemedText style={styles.recordingText}>Recording...</ThemedText>
+        </View>
+      ) : (
+        <AudioWaveForm isPlaying={isPlaying} />
+      )}
+      {/* TODO: implement branches */}
+      <View
+        style={[
+          styles.promptTextContainer,
+          {
+            minHeight: currentQuestion.type === "listening_mc" ? 0 : 50,
+          },
+        ]}
+      >
+        {selectedOption ? (
+          <View style={styles.recordingPromptTop}>
+            <ThemedText style={styles.recordingPromptText}>
+              {isRecognizing
+                ? "Speak your response now. Try to match the tone and rhythm of the audio."
+                : "Tap the button to record."}
+            </ThemedText>
+          </View>
+        ) : !hasListenedToAudio ? (
+          <View style={styles.listeningPrompt}>
+            <Animated.View 
+            style={[styles.instructionContainer,{
+              opacity: instructionOpacity,
+            }]}
+          >
+            <ThemedText style={[styles.instructionText,{
+              marginBottom: 8,
+            }]}>
+              Listen to the audio and try to understand 
+              the content before responding.
+            </ThemedText>
+            <ThemedText style={[styles.instructionHint]}>
+              The audio plays once before each response.
+            </ThemedText>
+          </Animated.View>
+          <Animated.View
+            style={[
+              styles.listeningContainer,{
+                opacity: listeningOpacity,
+              }
+            ]}
+          >
+            <ThemedText>Listening</ThemedText>
+          </Animated.View>
+          </View>
+        ) : null}
+      </View>
     </>
   );
 }
