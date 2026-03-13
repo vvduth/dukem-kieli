@@ -1,7 +1,7 @@
 import { Question } from "@/constants/CourseData";
 import { View,Text , StyleSheet, Animated} from "react-native";
 import ProgressHeader from "./ProgressHeader";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ConfirmDialog from "../ui/ConfirmDialog";
 import { router } from "expo-router";
 import {Audio} from 'expo-av'
@@ -64,7 +64,7 @@ export default function LessonContent({
     >(new Set())
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const scaleAnim = useRef(new Animated.Value(1)).current;
-    const optionAnim = useRef(new Animated.Value(0)).current;
+    const optionAnimResult = useRef(new Animated.Value(0)).current;
     const audioSectionAnimHeight = useRef(new Animated.Value(400)).current;
     const optionSelectionAnim = useRef(new Animated.Value(0)).current;
     const instructionOpacity = useRef(new Animated.Value(1)).current;
@@ -74,6 +74,35 @@ export default function LessonContent({
     const [hasStartedFirstPlay, sethasStartedFirstPlay] = useState(false)
 
     const progress = ((currentQuestionIndex + 1) / questions.length )* 100;
+
+    useEffect(() => {
+      if (isSpeechPlaying && !hasStartedFirstPlay && !hasListenedToAudio) {
+        Animated.parallel([
+          Animated.timing(instructionOpacity, {
+            toValue: 0,
+            duration: 200,
+            useNativeDriver: true
+          }),
+          Animated.timing(listeningOpacity,{
+            toValue: 0,
+            duration: 250,
+            useNativeDriver: true
+          }),
+          Animated.sequence([
+            Animated.timing(listeningScale, {
+              toValue: 1.05,
+              duration: 150,
+              useNativeDriver: true
+            }),
+            Animated.timing(listeningScale, {
+              toValue: 1, 
+              duration: 150,
+              useNativeDriver: true
+            })
+          ])
+        ]).start()
+      }
+    },[isSpeechPlaying, hasStartedFirstPlay, hasListenedToAudio])
     
     const finishListening = () => {
       if (hasListenedToAudio) return;
@@ -183,6 +212,29 @@ export default function LessonContent({
                   fadeAnim={fadeAnim}
                 />
               </Animated.View>
+              {hasListenedToAudio && (
+                <Animated.View
+                  style={[
+                    styles.optionsSection,
+                    {
+                      opacity: Animated.multiply(
+                        optionAnimResult,
+                        isLoading || showResult ? 0.6 : 1
+                      ),
+                      transform: [
+                        {
+                          translateY: optionAnimResult.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [30, 0],
+                          })
+                        }
+                      ]
+                    }
+                  ]}
+                >{
+                  
+                }</Animated.View>
+              )}
             </View>
         </View>
     )

@@ -156,13 +156,64 @@ export default function AudioPrompt({
             style={[
               styles.listeningContainer,{
                 opacity: listeningOpacity,
+                transform:[
+                  {
+                    scale: listeningScale
+                  }
+                ]
               }
             ]}
           >
-            <ThemedText>Listening</ThemedText>
+            <ThemedText
+            style={
+              styles.revealButtonText
+            }>Listening</ThemedText>
           </Animated.View>
           </View>
-        ) : null}
+        ) : showMandarin ? (
+          <TouchableOpacity
+            onPress={onRevealMandarin}
+          >
+            <Animated.View
+              style={[
+                styles.mandarinText,
+                {
+                  opacity: fadeAnim
+                }
+              ]}
+            >
+              <ThemedText style={styles.pinyin}>
+                {currentQuestion.mandarin.pinyin}
+              </ThemedText>
+              <ThemedText style={[styles.hanzi,
+                {
+                  color: Colors.subduedTextColor
+                }
+              ]}>
+                {currentQuestion.mandarin.hanzi}
+              </ThemedText>
+            </Animated.View>
+          </TouchableOpacity>
+        ) : (
+          currentQuestion.type !== "listening_mc" && (
+            <TouchableOpacity
+              style={styles.revealButton}
+              onPress={onRevealMandarin}
+              hitSlop={{
+                top: 10,
+                bottom: 10, 
+                left: 20, 
+                right: 20
+              }}
+            >
+              <ThemedText
+                style={
+                  styles.instructionText
+                }
+              >Tap here to reveal what was said</ThemedText>
+            </TouchableOpacity>
+          )
+        )}
       </View>
     </>
   );
