@@ -8,6 +8,7 @@ import {Audio} from 'expo-av'
 import AudioPrompt from "./AudioPrompt";
 import * as Speech from 'expo-speech';
 import { recordQuestionListened } from "@/lib/speakingListeningStats";
+import MultipleChoiceMode from "./MultipleChoiceMode";
 
 interface WrongQuestion {
   english: string;
@@ -231,8 +232,21 @@ export default function LessonContent({
                       ]
                     }
                   ]}
+                  pointerEvents={
+                    isLoading || showResult ? 'none' : 'auto'
+                  }
                 >{
-                  
+                  currentQuestion.type === "multiple_choice"  && 
+                  (
+                    <MultipleChoiceMode 
+                      options={currentQuestion.options}
+                      selectedOption={selectedOption}
+                      handlingOptionPress={() => {}}
+                      optionSelectionAnim={optionSelectionAnim}
+                      isLoading={isLoading}
+                      showResult={showResult}
+                    />
+                  )
                 }</Animated.View>
               )}
             </View>

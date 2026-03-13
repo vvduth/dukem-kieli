@@ -1,0 +1,148 @@
+import { SpeakingOption } from "@/constants/CourseData";
+import { Colors } from "@/constants/theme";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import {
+  Animated,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
+import { ThemedText } from "../themed-text";
+
+export default function MultipleChoiceMode({
+    options,
+    selectedOption,
+    handlingOptionPress,
+    optionSelectionAnim,
+    isLoading,
+    showResult
+}: {
+options: SpeakingOption[],
+selectedOption: number | null,
+handlingOptionPress: (id: number) => void;
+optionSelectionAnim: Animated.Value,
+isLoading: boolean,
+showResult: boolean
+}) {
+    return (
+        <View style={
+          {  flex: 1,}
+        }>
+            <View style={styles.promptContainer}>
+            <Animated.View
+                style={{
+                opacity: optionSelectionAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [1, 0],
+                }),
+                transform:[
+                    {
+                        translateY: optionSelectionAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0, -10],
+                        })
+                    }
+                ]
+                }}
+            >
+                <ThemedText
+                    type={'subtitle'}
+                  style={styles.sectionTitle}
+                >Choose your response</ThemedText>
+            </Animated.View>
+             <Animated.View
+          style={[
+            styles.sayItPromptContainer,
+            {
+              opacity: optionSelectionAnim,
+              transform: [
+                {
+                  translateY: optionSelectionAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [10, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <ThemedText type="subtitle" style={styles.sayItPrompt}>
+            Now, say it in Mandarin
+          </ThemedText>
+        </Animated.View>
+            </View>
+        </View>
+    )
+}
+
+const styles = StyleSheet.create({
+  sectionTitle: {
+    marginBottom: 20,
+    fontSize: 18,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  promptContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+    minHeight: 50,
+  },
+  sayItPromptContainer: {
+    position: "absolute",
+    bottom: 20,
+  },
+  sayItPrompt: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: Colors.primaryAccentColor,
+    textAlign: "center",
+  },
+  optionsScrollView: {
+    flex: 1,
+  },
+  optionsContentContainer: {
+    paddingBottom: 0,
+  },
+  optionContainer: {
+    marginBottom: 16,
+  },
+  optionButton: {
+    padding: 20,
+    borderRadius: 12,
+    borderWidth: 2,
+    overflow: "visible",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+    }),
+  },
+  selectedOption: {
+    ...Platform.select({
+      ios: {
+        shadowOpacity: 0.2,
+      },
+      android: {
+        borderWidth: 3,
+      },
+    }),
+  },
+  optionContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  optionText: {
+    fontSize: 16,
+    fontWeight: "500",
+    flex: 1,
+  },
+  selectedIndicator: {
+    marginLeft: 12,
+  },
+});
