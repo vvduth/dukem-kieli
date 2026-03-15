@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { ThemedText } from "../themed-text";
+import { scale } from "react-native-size-matters";
 
 export default function MultipleChoiceMode({
     options,
@@ -73,6 +74,78 @@ showResult: boolean
           </ThemedText>
         </Animated.View>
             </View>
+            <ScrollView
+              style={styles.optionsScrollView}
+              contentContainerStyle={styles.optionsContentContainer}
+              showsVerticalScrollIndicator={false}
+              scrollEnabled={!isLoading && !showResult}
+            >
+              {options.map((option) => {
+                const isSelected = selectedOption === option.id;
+                const optionStyle = {
+                  opacity: Animated.multiply(
+                    optionSelectionAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [1, isSelected ? 1 : 0.4],
+                      
+                    }),
+                    isLoading || showResult ? 0.5 : 1
+                  ),
+                  transform: [
+                    {
+                      scale: optionSelectionAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [1, isSelected ? 1.05 : 0.95],
+                      })
+                    }
+                  ]
+                }
+                return (
+                  <Animated.View
+                    key={option.id}
+                    style={[styles.optionContainer, optionStyle]}
+                  >
+                    <Pressable
+                      style={[
+                        styles.optionButton,
+                        isSelected && styles.selectedOption,
+                        {
+                          backgroundColor: "#ffffff",
+                          borderColor: isSelected 
+                          ? Colors.primaryAccentColor 
+                          : '#e5e7eb',
+                          opacity: isLoading || showResult ? 0.7 : 1,
+                        }
+                      ]}
+                      onPress={() => handlingOptionPress(option.id)}
+                      disabled={isLoading || showResult}
+                    >
+                      <View
+                        style={styles.optionContent}
+                      >
+                        <ThemedText
+                          style={styles.optionText}
+                        >{
+                          option.english}</ThemedText>
+                          {
+                            isSelected && (
+                              <View
+                                style={styles.selectedIndicator}
+                              >
+                                <Ionicons
+                                  name="mic-outline"
+                                  size={20}
+                                  color={Colors.primaryAccentColor}
+                                />
+                              </View>
+                            )
+                          }
+                      </View>
+                    </Pressable>
+                  </Animated.View>
+                )
+              })}
+            </ScrollView>
         </View>
     )
 }

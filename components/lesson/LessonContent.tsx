@@ -1,18 +1,19 @@
 import { Question } from "@/constants/CourseData";
-import { View,Text , StyleSheet, Animated} from "react-native";
+import { View, Text, StyleSheet, Animated } from "react-native";
 import ProgressHeader from "./ProgressHeader";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ConfirmDialog from "../ui/ConfirmDialog";
 import { router } from "expo-router";
-import {Audio} from 'expo-av'
+import { Audio } from "expo-av";
 import AudioPrompt from "./AudioPrompt";
-import * as Speech from 'expo-speech';
+import * as Speech from "expo-speech";
 import { recordQuestionListened } from "@/lib/speakingListeningStats";
 import MultipleChoiceMode from "./MultipleChoiceMode";
+import ListeningMultipleChoiceMode from "./ListeningMultipleChoiceMode";
 
 interface WrongQuestion {
   english: string;
-  mandarin:  {
+  mandarin: {
     pinyin: string;
     hanzi: string;
   };
@@ -27,231 +28,252 @@ export interface LessonStats {
 }
 
 export default function LessonContent({
-    questions,
-    lessonId
-}:{
-    questions: Question[],
-    lessonId: string
+  questions,
+  lessonId,
+}: {
+  questions: Question[];
+  lessonId: string;
 }) {
-    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
-    const [exitConfirmationVisible, setExitConfirmationVisible] = useState(false);
-    const [showMandarin, setShowMandarin] = useState(false)
-    const [selectedOption, setSelectedOption] = useState<number | null>(null)
-    const [isLoading, setIsLoading] = useState(false)
-    const [showResult, setShowResult] = useState(false)
-    const [hasListenedToAudio, setHasListenedToAudio] = useState(false)
-    const [isCorrect, setIsCorrect] = useState(false)
-    const [attemptCount, setAttemptCount] = useState(0)
-    const [isRecognizing, setIsRecognizing] = useState(false)
-    const recordingRef = useState<Audio.Recording | null>(null);
-    const [transcriptiom, setTranscriptiom] = useState<{
-      expected: string,
-      said: string;
-    }|null>(null)
-    const currentQuestion = useMemo(() => {
-        return questions[currentQuestionIndex]
-    }, [currentQuestionIndex, questions])
-    const [isSpeechPlaying, setIsSpeechPlaying] = useState(false);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [exitConfirmationVisible, setExitConfirmationVisible] = useState(false);
+  const [showMandarin, setShowMandarin] = useState(false);
+  const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showResult, setShowResult] = useState(false);
+  const [hasListenedToAudio, setHasListenedToAudio] = useState(false);
+  const [isCorrect, setIsCorrect] = useState(false);
+  const [attemptCount, setAttemptCount] = useState(0);
+  const [isRecognizing, setIsRecognizing] = useState(false);
+  const recordingRef = useState<Audio.Recording | null>(null);
+  const [transcriptiom, setTranscriptiom] = useState<{
+    expected: string;
+    said: string;
+  } | null>(null);
+  const currentQuestion = useMemo(() => {
+    return questions[currentQuestionIndex];
+  }, [currentQuestionIndex, questions]);
+  const [isSpeechPlaying, setIsSpeechPlaying] = useState(false);
 
-    // Lesson complete logic
-    const [showCompleteScreen, setShowCompleteScreen] = useState(false)
-    const [lessonStats, setLessonStats] = useState<LessonStats | null>()
-    const [questionAttempts, setQuestionAttempts] = useState<
+  // Lesson complete logic
+  const [showCompleteScreen, setShowCompleteScreen] = useState(false);
+  const [lessonStats, setLessonStats] = useState<LessonStats | null>();
+  const [questionAttempts, setQuestionAttempts] = useState<
     Record<string, number>
-    >({})
-    const [correctAnswersCount, setCorrectAnswersCount] = useState(0)
-    const [wrongQuestions, setWrongQuestions] = useState<
-    Set<number>
-    >(new Set())
-    const fadeAnim = useRef(new Animated.Value(0)).current;
-    const scaleAnim = useRef(new Animated.Value(1)).current;
-    const optionAnimResult = useRef(new Animated.Value(0)).current;
-    const audioSectionAnimHeight = useRef(new Animated.Value(400)).current;
-    const optionSelectionAnim = useRef(new Animated.Value(0)).current;
-    const instructionOpacity = useRef(new Animated.Value(1)).current;
-    const listeningOpacity = useRef(new Animated.Value(0)).current;
-    const listeningScale = useRef(new Animated.Value(0.95)).current;
+  >({});
+  const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
+  const [wrongQuestions, setWrongQuestions] = useState<Set<number>>(new Set());
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const optionAnimResult = useRef(new Animated.Value(0)).current;
+  const audioSectionAnimHeight = useRef(new Animated.Value(400)).current;
+  const optionSelectionAnim = useRef(new Animated.Value(0)).current;
+  const instructionOpacity = useRef(new Animated.Value(1)).current;
+  const listeningOpacity = useRef(new Animated.Value(0)).current;
+  const listeningScale = useRef(new Animated.Value(0.95)).current;
 
-    const [hasStartedFirstPlay, sethasStartedFirstPlay] = useState(false)
+  const [hasStartedFirstPlay, sethasStartedFirstPlay] = useState(false);
 
-    const progress = ((currentQuestionIndex + 1) / questions.length )* 100;
+  const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
 
-    useEffect(() => {
-      if (isSpeechPlaying && !hasStartedFirstPlay && !hasListenedToAudio) {
-        Animated.parallel([
-          Animated.timing(instructionOpacity, {
-            toValue: 0,
-            duration: 200,
-            useNativeDriver: true
-          }),
-          Animated.timing(listeningOpacity,{
-            toValue: 0,
-            duration: 250,
-            useNativeDriver: true
-          }),
-          Animated.sequence([
-            Animated.timing(listeningScale, {
-              toValue: 1.05,
-              duration: 150,
-              useNativeDriver: true
-            }),
-            Animated.timing(listeningScale, {
-              toValue: 1, 
-              duration: 150,
-              useNativeDriver: true
-            })
-          ])
-        ]).start()
-      }
-    },[isSpeechPlaying, hasStartedFirstPlay, hasListenedToAudio])
-    
-    const finishListening = () => {
-      if (hasListenedToAudio) return;
-      setHasListenedToAudio(true)
-      setIsSpeechPlaying(false)
-      void recordQuestionListened();
+  useEffect(() => {
+    if (isSpeechPlaying && !hasStartedFirstPlay && !hasListenedToAudio) {
       Animated.parallel([
-        Animated.timing(audioSectionAnimHeight, {
-          toValue: 200,
-          duration: 800,
-          useNativeDriver: false,
-        }),
         Animated.timing(instructionOpacity, {
-          toValue: 1,
-          duration: 800,
-          delay: 200,
-          useNativeDriver: true,
-        })
-      ]).start()
-    }
-    const playAudio = async () => {
-      const textToSpeech = currentQuestion.mandarin.hanzi || currentQuestion.mandarin.pinyin ;
-      if (isSpeechPlaying) {
-        Speech.stop();
-        setIsSpeechPlaying(false);
-        return;
-      }
-      setIsSpeechPlaying(true);
-      Speech.speak(textToSpeech, {
-        language: 'zh-CN',
-        onDone: () => {setIsSpeechPlaying(false);
-          finishListening();
-        },
-        onStopped: () => {
-          setIsSpeechPlaying(false);
-        },
-        onError: () => setIsSpeechPlaying(false),
-      })
-    }
-
-    const handleRevealMandarin = () => {
-      if (showMandarin) {
-        Animated.timing(fadeAnim,{
           toValue: 0,
-          duration: 500,
+          duration: 200,
           useNativeDriver: true,
-        }).start(() => setShowMandarin(false))
-      } else {
-        Animated.timing(fadeAnim,{
-          toValue: 1,
-          duration: 500,
+        }),
+        Animated.timing(listeningOpacity, {
+          toValue: 0,
+          duration: 250,
           useNativeDriver: true,
-        }).start(() => setShowMandarin(true))
-      }
+        }),
+        Animated.sequence([
+          Animated.timing(listeningScale, {
+            toValue: 1.05,
+            duration: 150,
+            useNativeDriver: true,
+          }),
+          Animated.timing(listeningScale, {
+            toValue: 1,
+            duration: 150,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]).start();
     }
-    return (
-        <View style={styles.container}>
-            <ConfirmDialog 
-                visible={exitConfirmationVisible}
-                title="Exit Lesson"
-                description="Are you sure you want to quit?"
-                cancelLabel="Cancel"
-                confirmLabel="Exit"
-                onConfirm={() => {
-                    setExitConfirmationVisible(false);
-                    // TODO: stop what ever is playing
-                    router.push("/lessons")
-                }}
-                onCancel={() => setExitConfirmationVisible(false)}
-            />
-            <ProgressHeader 
-                progress={progress}
-                currentCount={currentQuestionIndex + 1}
-                onClose={() => setExitConfirmationVisible(true)}
-                totalCount={questions.length}
-            />
-            {/* main content */}
-            <View style={styles.content}>
-              <Animated.View
-                style={[
-                  styles.audioSection,
+  }, [isSpeechPlaying, hasStartedFirstPlay, hasListenedToAudio]);
+
+  const finishListening = () => {
+    if (hasListenedToAudio) return;
+    setHasListenedToAudio(true);
+    setIsSpeechPlaying(false);
+    void recordQuestionListened();
+    Animated.parallel([
+      Animated.timing(audioSectionAnimHeight, {
+        toValue: 200,
+        duration: 800,
+        useNativeDriver: false,
+      }),
+      Animated.timing(instructionOpacity, {
+        toValue: 1,
+        duration: 800,
+        delay: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+  const playAudio = async () => {
+    const textToSpeech =
+      currentQuestion.mandarin.hanzi || currentQuestion.mandarin.pinyin;
+    if (isSpeechPlaying) {
+      Speech.stop();
+      setIsSpeechPlaying(false);
+      return;
+    }
+    setIsSpeechPlaying(true);
+    Speech.speak(textToSpeech, {
+      language: "zh-CN",
+      onDone: () => {
+        setIsSpeechPlaying(false);
+        finishListening();
+      },
+      onStopped: () => {
+        setIsSpeechPlaying(false);
+      },
+      onError: () => setIsSpeechPlaying(false),
+    });
+  };
+
+  const handleRevealMandarin = () => {
+    if (showMandarin) {
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }).start(() => setShowMandarin(false));
+    } else {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }).start(() => setShowMandarin(true));
+    }
+  };
+
+  const handleOptionPress = (id: number) => {
+    if (currentQuestion.type === "listening_mc") {
+      return;
+    }
+    const isDeselecting = selectedOption === id;
+    const newSelectedOption = isDeselecting ? null : id;
+    setSelectedOption(newSelectedOption);
+    Animated.timing(optionSelectionAnim, {
+      toValue: isDeselecting ? 0 : 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+  return (
+    <View style={styles.container}>
+      <ConfirmDialog
+        visible={exitConfirmationVisible}
+        title="Exit Lesson"
+        description="Are you sure you want to quit?"
+        cancelLabel="Cancel"
+        confirmLabel="Exit"
+        onConfirm={() => {
+          setExitConfirmationVisible(false);
+          // TODO: stop what ever is playing
+          router.push("/lessons");
+        }}
+        onCancel={() => setExitConfirmationVisible(false)}
+      />
+      <ProgressHeader
+        progress={progress}
+        currentCount={currentQuestionIndex + 1}
+        onClose={() => setExitConfirmationVisible(true)}
+        totalCount={questions.length}
+      />
+      {/* main content */}
+      <View style={styles.content}>
+        <Animated.View
+          style={[
+            styles.audioSection,
+            {
+              backgroundColor: "#F0F4FF",
+              minHeight: audioSectionAnimHeight,
+              flex: hasListenedToAudio ? 0 : 1,
+              justifyContent: "center",
+              opacity: isLoading || showResult ? 0.6 : 1,
+            },
+          ]}
+          pointerEvents={isLoading || showResult ? "none" : "auto"}
+        >
+          <AudioPrompt
+            isPlaying={isSpeechPlaying}
+            isRecognizing={isRecognizing}
+            hasListenedToAudio={hasListenedToAudio}
+            onPlay={playAudio}
+            onStartRecord={() => {}}
+            onStopRecord={() => {}}
+            onRevealMandarin={handleRevealMandarin}
+            currentQuestion={currentQuestion}
+            showMandarin={showMandarin}
+            selectedOption={selectedOption}
+            scaleAnim={scaleAnim}
+            instructionOpacity={instructionOpacity}
+            listeningOpacity={listeningOpacity}
+            listeningScale={listeningScale}
+            fadeAnim={fadeAnim}
+          />
+        </Animated.View>
+        {hasListenedToAudio && (
+          <Animated.View
+            style={[
+              styles.optionsSection,
+              {
+                opacity: Animated.multiply(
+                  optionAnimResult,
+                  isLoading || showResult ? 0.6 : 1,
+                ),
+                transform: [
                   {
-                    backgroundColor: '#F0F4FF',
-                    minHeight: audioSectionAnimHeight,
-                    flex: hasListenedToAudio ? 0 : 1,
-                    justifyContent: 'center',
-                    opacity: isLoading || showResult ? 0.6 : 1,
-                  }
-                ]}
-                pointerEvents={isLoading || showResult ? 'none' : 'auto'}
-              >
-                <AudioPrompt 
-                  isPlaying={isSpeechPlaying}
-                  isRecognizing={isRecognizing}
-                  hasListenedToAudio={hasListenedToAudio}
-                  onPlay={playAudio}
-                  onStartRecord={() => {}}
-                  onStopRecord={() => {}}
-                  onRevealMandarin={handleRevealMandarin}
-                  currentQuestion={currentQuestion}
-                  showMandarin={showMandarin}
-                  selectedOption={selectedOption}
-                  scaleAnim={scaleAnim}
-                  instructionOpacity={instructionOpacity}
-                  listeningOpacity={listeningOpacity}
-                  listeningScale={listeningScale}
-                  fadeAnim={fadeAnim}
-                />
-              </Animated.View>
-              {hasListenedToAudio && (
-                <Animated.View
-                  style={[
-                    styles.optionsSection,
-                    {
-                      opacity: Animated.multiply(
-                        optionAnimResult,
-                        isLoading || showResult ? 0.6 : 1
-                      ),
-                      transform: [
-                        {
-                          translateY: optionAnimResult.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [30, 0],
-                          })
-                        }
-                      ]
-                    }
-                  ]}
-                  pointerEvents={
-                    isLoading || showResult ? 'none' : 'auto'
-                  }
-                >{
-                  currentQuestion.type === "multiple_choice"  && 
-                  (
-                    <MultipleChoiceMode 
-                      options={currentQuestion.options}
-                      selectedOption={selectedOption}
-                      handlingOptionPress={() => {}}
-                      optionSelectionAnim={optionSelectionAnim}
-                      isLoading={isLoading}
-                      showResult={showResult}
-                    />
-                  )
-                }</Animated.View>
-              )}
-            </View>
-        </View>
-    )
+                    translateY: optionAnimResult.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [30, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+            pointerEvents={isLoading || showResult ? "none" : "auto"}
+          >
+            {currentQuestion.type === "multiple_choice" && (
+              <MultipleChoiceMode
+                options={currentQuestion.options}
+                selectedOption={selectedOption}
+                handlingOptionPress={handleOptionPress}
+                optionSelectionAnim={optionSelectionAnim}
+                isLoading={isLoading}
+                showResult={showResult}
+              />
+            )}
+            {currentQuestion.type === "listening_mc" && (
+              <ListeningMultipleChoiceMode
+                options={currentQuestion.options}
+                selectedOption={selectedOption}
+                handleOptionPress={handleOptionPress}
+                isLoading={isLoading}
+                showResult={showResult}
+              />
+                
+            )}
+          </Animated.View>
+        )}
+      </View>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
