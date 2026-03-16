@@ -163,6 +163,21 @@ export default function LessonContent({
 
   const handleOptionPress = (id: number) => {
     if (currentQuestion.type === "listening_mc") {
+      setSelectedOption(id);
+      setIsCorrect(id === currentQuestion.correctOptionId);
+      setShowResult(true);
+      Animated.sequence([
+        Animated.timing(scaleAnim,{
+          toValue: 1.05,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim,{
+          toValue: 1,
+          duration:200,
+          useNativeDriver: true,
+        })
+      ]).start();
       return;
     }
     const isDeselecting = selectedOption === id;
