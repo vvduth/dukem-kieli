@@ -4,7 +4,8 @@ import ProgressHeader from "./ProgressHeader";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ConfirmDialog from "../ui/ConfirmDialog";
 import { router } from "expo-router";
-import { Audio } from "expo-av";
+import { Audio, InterruptionModeIOS } from "expo-av";
+import { toast } from "sonner-native";
 import AudioPrompt from "./AudioPrompt";
 import * as Speech from "expo-speech";
 import { recordQuestionListened } from "@/lib/speakingListeningStats";
@@ -44,7 +45,7 @@ export default function LessonContent({
   const [isCorrect, setIsCorrect] = useState(false);
   const [attemptCount, setAttemptCount] = useState(0);
   const [isRecognizing, setIsRecognizing] = useState(false);
-  const recordingRef = useState<Audio.Recording | null>(null);
+  const recordingRef = useRef<Audio.Recording | null>(null);
   const [transcriptiom, setTranscriptiom] = useState<{
     expected: string;
     said: string;
@@ -104,6 +105,21 @@ export default function LessonContent({
     }
   }, [isSpeechPlaying, hasStartedFirstPlay, hasListenedToAudio]);
 
+  useEffect(() => {
+    if (currentQuestion.type === 'single_response' &&
+      currentQuestion.options.length > 0
+      && hasListenedToAudio
+    ) {
+      setSelectedOption(currentQuestion.options[0].id);
+      Animated.timing(optionSelectionAnim,{
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+      
+    }
+  }, [currentQuestion, hasListenedToAudio]);
+
   const finishListening = () => {
     if (hasListenedToAudio) return;
     setHasListenedToAudio(true);
@@ -144,6 +160,52 @@ export default function LessonContent({
       onError: () => setIsSpeechPlaying(false),
     });
   };
+
+  const startRecording = async () => {
+    if (isSpeechPlaying) {
+      Speech.stop();
+      setIsSpeechPlaying(false);
+    }
+
+    try {
+      const permission = await Audio.requestPermissionsAsync();
+      if (!permission.granted) {
+        toast.error("Microphone permission",{
+          description:"Please allow microphone access to record your response"
+        });
+        return;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+        staysActiveInBackground: true
+      })
+
+      const preset = Audio.RecordingOptionsPresets.HIGH_QUALITY;
+      const {recording} = await Audio.Recording.createAsync({
+        ...preset,
+        ios: {
+          ...preset.ios,
+          extension: ".wav",
+          audioQuality: Audio.IOSAudioQuality.MAX,
+          outputFormat: Audio.IOSOutputFormat.LINEARPCM
+        },
+        android:{
+          ...preset.android,
+          extension: ".wav",
+          audioEncoder: Audio.AndroidOutputFormat.DEFAULT,
+          outputFormat: Audio.AndroidAudioEncoder.DEFAULT,
+        }
+      });
+      recordingRef.current = recording;
+      setIsRecognizing(true);
+      await recording.startAsync();
+    } catch (error) {
+      
+    }
+  }
 
   const handleRevealMandarin = () => {
     if (showMandarin) {
@@ -230,7 +292,7 @@ export default function LessonContent({
             isRecognizing={isRecognizing}
             hasListenedToAudio={hasListenedToAudio}
             onPlay={playAudio}
-            onStartRecord={() => {}}
+            onStartRecord={startRecording}
             onStopRecord={() => {}}
             onRevealMandarin={handleRevealMandarin}
             currentQuestion={currentQuestion}
