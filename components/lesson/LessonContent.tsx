@@ -11,7 +11,7 @@ import * as Speech from "expo-speech";
 import { recordQuestionListened } from "@/lib/speakingListeningStats";
 import MultipleChoiceMode from "./MultipleChoiceMode";
 import ListeningMultipleChoiceMode from "./ListeningMultipleChoiceMode";
-
+import * as FileSystem from "expo-file-system/legacy";
 interface WrongQuestion {
   english: string;
   mandarin: {
@@ -202,6 +202,43 @@ export default function LessonContent({
       recordingRef.current = recording;
       setIsRecognizing(true);
       await recording.startAsync();
+    } catch (error) {
+      console.error("Error starting recording:", error);
+      recordingRef.current = null;
+      setIsRecognizing(false);
+      toast.error("Recording error",{
+        description:"An error occurred while starting the recording. Please try again."
+      });
+    }
+  }
+
+  const stopRecording = async () => {
+    setIsLoading(true);
+    setIsRecognizing(false);
+    try {
+      const recording = recordingRef.current;
+      if (!recording) {
+        toast.error("No recording found",{
+          description:"Please start a recording before trying to stop it."
+        });
+        setIsLoading(false);
+        return;
+      }
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      recordingRef.current = null;
+      if (!uri) {
+        setIsLoading(false);
+        toast.error("Recording error",{
+          description:"An error occurred while processing the recording. Please try again."
+        });
+        return;
+      }
+      const base64Audio = await FileSystem.readAsStringAsync(
+        uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        }
+      )
     } catch (error) {
       
     }
