@@ -1,4 +1,4 @@
-import { Question } from "@/constants/CourseData";
+import { Question, SpeakingOption } from "@/constants/CourseData";
 import { View, Text, StyleSheet, Animated } from "react-native";
 import ProgressHeader from "./ProgressHeader";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -8,10 +8,12 @@ import { Audio, InterruptionModeIOS } from "expo-av";
 import { toast } from "sonner-native";
 import AudioPrompt from "./AudioPrompt";
 import * as Speech from "expo-speech";
-import { recordQuestionListened } from "@/lib/speakingListeningStats";
+import { recordQuestionAnswered, recordQuestionListened } from "@/lib/speakingListeningStats";
 import MultipleChoiceMode from "./MultipleChoiceMode";
 import ListeningMultipleChoiceMode from "./ListeningMultipleChoiceMode";
 import * as FileSystem from "expo-file-system/legacy";
+import { supabase } from "@/utils/supabase";
+import {compareTwoStrings} from "string-similarity"
 interface WrongQuestion {
   english: string;
   mandarin: {
@@ -46,7 +48,7 @@ export default function LessonContent({
   const [attemptCount, setAttemptCount] = useState(0);
   const [isRecognizing, setIsRecognizing] = useState(false);
   const recordingRef = useRef<Audio.Recording | null>(null);
-  const [transcriptiom, setTranscriptiom] = useState<{
+  const [transcription, setTranscription] = useState<{
     expected: string;
     said: string;
   } | null>(null);
@@ -75,6 +77,36 @@ export default function LessonContent({
   const [hasStartedFirstPlay, sethasStartedFirstPlay] = useState(false);
 
   const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+  const selectedSentence = useMemo((): SpeakingOption | null => {
+    if (currentQuestion.type === "listening_mc") {
+      if (showResult) {
+        const correctEnglish =
+          currentQuestion.options.find(
+            (option) => option.id === currentQuestion.correctOptionId,
+          )?.english || "";
+        return {
+          id: currentQuestion.id,
+          english: correctEnglish,
+          mandarin: {
+            ...currentQuestion.mandarin,
+          },
+        };
+      }
+      return null;
+    }
+
+    if (!selectedOption) return null;
+    return currentQuestion.options.find((option) => option.id === selectedOption)! || null;
+  }, [selectedOption, currentQuestion, showResult]);
+
+  useEffect(() => {
+    return () => {
+      Speech.stop();
+      if (recordingRef.current) {
+        recordingRef.current.stopAndUnloadAsync();
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (isSpeechPlaying && !hasStartedFirstPlay && !hasListenedToAudio) {
@@ -106,17 +138,17 @@ export default function LessonContent({
   }, [isSpeechPlaying, hasStartedFirstPlay, hasListenedToAudio]);
 
   useEffect(() => {
-    if (currentQuestion.type === 'single_response' &&
-      currentQuestion.options.length > 0
-      && hasListenedToAudio
+    if (
+      currentQuestion.type === "single_response" &&
+      currentQuestion.options.length > 0 &&
+      hasListenedToAudio
     ) {
       setSelectedOption(currentQuestion.options[0].id);
-      Animated.timing(optionSelectionAnim,{
+      Animated.timing(optionSelectionAnim, {
         toValue: 1,
         duration: 300,
         useNativeDriver: true,
       }).start();
-      
     }
   }, [currentQuestion, hasListenedToAudio]);
 
@@ -170,8 +202,8 @@ export default function LessonContent({
     try {
       const permission = await Audio.requestPermissionsAsync();
       if (!permission.granted) {
-        toast.error("Microphone permission",{
-          description:"Please allow microphone access to record your response"
+        toast.error("Microphone permission", {
+          description: "Please allow microphone access to record your response",
         });
         return;
       }
@@ -180,24 +212,24 @@ export default function LessonContent({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
         interruptionModeIOS: InterruptionModeIOS.DoNotMix,
-        staysActiveInBackground: true
-      })
+        staysActiveInBackground: true,
+      });
 
       const preset = Audio.RecordingOptionsPresets.HIGH_QUALITY;
-      const {recording} = await Audio.Recording.createAsync({
+      const { recording } = await Audio.Recording.createAsync({
         ...preset,
         ios: {
           ...preset.ios,
           extension: ".wav",
           audioQuality: Audio.IOSAudioQuality.MAX,
-          outputFormat: Audio.IOSOutputFormat.LINEARPCM
+          outputFormat: Audio.IOSOutputFormat.LINEARPCM,
         },
-        android:{
+        android: {
           ...preset.android,
           extension: ".wav",
           audioEncoder: Audio.AndroidOutputFormat.DEFAULT,
           outputFormat: Audio.AndroidAudioEncoder.DEFAULT,
-        }
+        },
       });
       recordingRef.current = recording;
       setIsRecognizing(true);
@@ -206,11 +238,59 @@ export default function LessonContent({
       console.error("Error starting recording:", error);
       recordingRef.current = null;
       setIsRecognizing(false);
-      toast.error("Recording error",{
-        description:"An error occurred while starting the recording. Please try again."
+      toast.error("Recording error", {
+        description:
+          "An error occurred while starting the recording. Please try again.",
       });
     }
-  }
+  };
+
+  const processSpeechResult = (transcript: string) => {
+    setIsLoading(false);
+    setShowResult(true);
+
+    const punctuationRegex = /[.,\/#!$%\^&\*;:{}=\-_`~()?]/g;
+
+    const rawExpected = selectedSentence?.mandarin.pinyin || "";
+    const expected  = rawExpected
+      .toLowerCase()
+      .replaceAll(punctuationRegex, "")
+      .replace(/\s+/g, "")
+      .trim();
+    const said = transcript
+    .toLowerCase()    .replaceAll(punctuationRegex, "")
+    .replace(/\s+/g, "")
+    .trim();
+
+    setTranscription({
+      expected: rawExpected,
+      said: transcript,
+    })
+
+    if (!said || !expected) {
+      setIsLoading(true);
+
+    } else {
+      const similarity = compareTwoStrings(expected, said);
+      const isSimilarEnough = similarity >= 0.8; // Adjust the threshold as needed
+      setIsCorrect(isSimilarEnough);
+      if (isSimilarEnough){
+        void recordQuestionAnswered()
+      }
+    }
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 1.05,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      })
+    ]).start();
+  };
 
   const stopRecording = async () => {
     setIsLoading(true);
@@ -218,8 +298,8 @@ export default function LessonContent({
     try {
       const recording = recordingRef.current;
       if (!recording) {
-        toast.error("No recording found",{
-          description:"Please start a recording before trying to stop it."
+        toast.error("No recording found", {
+          description: "Please start a recording before trying to stop it.",
         });
         setIsLoading(false);
         return;
@@ -229,20 +309,44 @@ export default function LessonContent({
       recordingRef.current = null;
       if (!uri) {
         setIsLoading(false);
-        toast.error("Recording error",{
-          description:"An error occurred while processing the recording. Please try again."
+        toast.error("Recording error", {
+          description:
+            "An error occurred while processing the recording. Please try again.",
         });
         return;
       }
-      const base64Audio = await FileSystem.readAsStringAsync(
-        uri, {
-          encoding: FileSystem.EncodingType.Base64,
-        }
-      )
+      const base64Audio = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      const { data, error } = await supabase.functions.invoke(
+        "transcribe-audio",
+        {
+          body: {
+            inputAudio: {
+              data: base64Audio,
+              format: "wav",
+            },
+          },
+        },
+      );
+
+      if (error) {
+        throw error;
+      }
+      if (data?.transcript) {
+        processSpeechResult(data.transcript);
+      } else {
+        throw new Error("No transcript returned from API");
+      }
     } catch (error) {
-      
+      console.error("Error start/stop recording:", error);
+      setIsLoading(false);
+      toast.error("Transcription error", {
+        description:
+          "An error occurred while processing your recording. Please try again.",
+      });
     }
-  }
+  };
 
   const handleRevealMandarin = () => {
     if (showMandarin) {
@@ -266,16 +370,16 @@ export default function LessonContent({
       setIsCorrect(id === currentQuestion.correctOptionId);
       setShowResult(true);
       Animated.sequence([
-        Animated.timing(scaleAnim,{
+        Animated.timing(scaleAnim, {
           toValue: 1.05,
           duration: 150,
           useNativeDriver: true,
         }),
-        Animated.timing(scaleAnim,{
+        Animated.timing(scaleAnim, {
           toValue: 1,
-          duration:200,
+          duration: 200,
           useNativeDriver: true,
-        })
+        }),
       ]).start();
       return;
     }
@@ -330,7 +434,7 @@ export default function LessonContent({
             hasListenedToAudio={hasListenedToAudio}
             onPlay={playAudio}
             onStartRecord={startRecording}
-            onStopRecord={() => {}}
+            onStopRecord={stopRecording}
             onRevealMandarin={handleRevealMandarin}
             currentQuestion={currentQuestion}
             showMandarin={showMandarin}
@@ -381,7 +485,6 @@ export default function LessonContent({
                 isLoading={isLoading}
                 showResult={showResult}
               />
-                
             )}
           </Animated.View>
         )}
